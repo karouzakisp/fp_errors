@@ -7,17 +7,33 @@ from bayes_optim import BO, RealSpace
 from bayes_optim.surrogate import GaussianProcess, trend, RandomForest
 
 
-mp.prec = 540
-
-import struct
-
-def floatToRawLongBits(value):
-	return struct.unpack('Q', struct.pack('d', value))[0]
-
-def longBitsToFloat(bits):
-	return struct.unpack('d', struct.pack('Q', bits))[0]
+mp.prec = 240
 
 
+
+def blackbox_imprv_f(ax):
+    sum_sins = 0
+    sums_sin_mp = 0
+    c = 0
+    c_mp = 0
+    freq = ax[-1]
+    for x in ax[:-1]:
+        x_mp = mp.mpf(x)
+        f_mp = mp.mpf(freq)
+        x1 = math.sin(x*freq*2*math.pi)
+        x2 = mp.sin(x_mp * f_mp * mp.mpf(2) * math.pi)
+        y = x1 - c
+        y_mp = x2 - c_mp
+        t = sum_sins + y
+        t_mp = sums_sin_mp + y
+        c = (t - sum_sins) - y
+        c_mp = (t_mp - sums_sin_mp) - y_mp
+        sum_sins = t
+        sums_sin_mp = t_mp
+    y = mp.absmin(sums_sin_mp - sum_sins)
+    return -math.log2(getFPNum(sums_sin_mp, sum_sins))
+
+     
 
 def black_box_f(ax):
     sum_sins = 0
@@ -30,6 +46,17 @@ def black_box_f(ax):
         sums_sin_mp += mp.sin(x_mp * f_mp * mp.mpf(2) * math.pi)
     y = mp.absmin(sums_sin_mp - sum_sins)
     return -math.log2(getFPNum(sums_sin_mp, sum_sins))
+
+
+
+import struct
+
+def floatToRawLongBits(value):
+	return struct.unpack('Q', struct.pack('d', value))[0]
+
+def longBitsToFloat(bits):
+	return struct.unpack('d', struct.pack('Q', bits))[0]
+
 
 
 def getFPNum(a,b):
@@ -66,15 +93,15 @@ def run():
         wait_iter=10,
         random_start = 5 * (dim),
         likelihood="concentrated",
-        eval_budget = 20 * (dim)
+        eval_budget = 30 * (dim)
     )
 
     bo = BO(search_space=SS, obj_fun=black_box_f,
-            model=model,  max_FEs=100,
+            model=model,  max_FEs=70,
             verbose=False, n_point=50,
             acquisition_optimization={"optimizer" : "BFGS"});
     xopt, fopt, _ = bo.run()
-    ll.append(fopt[0])
+    ll.append(-fopt[0])
 
 import matplotlib.pyplot as plt
 for i in range(0, 20):
