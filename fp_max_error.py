@@ -31,7 +31,7 @@ def blackbox_imprv_f(ax):
         sum_sins = t
         sums_sin_mp = t_mp
     y = mp.absmin(sums_sin_mp - sum_sins)
-    return -math.log2(getFPNum(sums_sin_mp, sum_sins))
+    return getFPNum(sums_sin_mp, sum_sins)*1000000000
 
      
 
@@ -95,13 +95,17 @@ def run():
         likelihood="concentrated",
         eval_budget = 30 * (dim)
     )
-
-    bo = BO(search_space=SS, obj_fun=black_box_f,
+    function_to_maximize = blackbox_imprv_f
+    bo = BO(search_space=SS, obj_fun=function_to_maximize,
             model=model,  max_FEs=70,
-            verbose=False, n_point=50,
+            verbose=False, n_point=10,
             acquisition_optimization={"optimizer" : "BFGS"});
     xopt, fopt, _ = bo.run()
-    ll.append(-fopt[0])
+    if(function_to_maximize != black_box_f):
+         ll.append(-fopt[0]/1000000000)
+    else:
+         ll.append(-fopt[0])
+
 
 import matplotlib.pyplot as plt
 for i in range(0, 20):
@@ -109,7 +113,7 @@ for i in range(0, 20):
 
 plt.hist(ll, edgecolor='black')
 plt.title('Histogram of Maximum Errors')
-plt.xlabel('Maximum Error')
+plt.xlabel('Maximum Error (how many bits are lost)')
 plt.ylabel('Frequency')
 plt.grid(True)
 plt.show()
